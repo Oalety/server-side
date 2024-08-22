@@ -1,0 +1,8 @@
+CREATE DATABASE IF NOT EXISTS oalety_db DEFAULT CHARACTER SET latin1;
+
+--
+-- Table structure for table `<TABLE_NAME>`
+--
+CREATE TABLE oalety_db.<TABLE_NAME> IF NOT EXISTS(
+
+)ENGINE=InnoDB DEFAULT CHARSET=latin1;
