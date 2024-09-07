@@ -1,0 +1,3 @@
+CREATE USER IF NOT EXISTS 'oalety_user'@'%' IDENTIFIED BY 'oalety1234';
+FLUSH PRIVILEGES;
+GRANT ALL PRIVILEGES ON *.* TO 'oalety_user'@'%';

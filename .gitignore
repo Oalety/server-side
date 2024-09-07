@@ -1,0 +1,41 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+oalety-fastapi-env
+venv/
+.env/
+
+# Log files
+*.log
+
+# Database
+*.sqlite3
+
+# Environment variables
+.env
+
+# Migrations
+migrations/
+
+# Coverage reports
+.coverage
+coverage.xml
+
+# Pytest cache
+.cache/
+nosetests.xml
+*.cover
+
+# IDE files
+.idea/
+.vscode/
+
+# Other files
+*.bak
+*.swp
+*.swo
+*.tmp
+*.DS_Store
