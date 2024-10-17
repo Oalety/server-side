@@ -6,6 +6,15 @@ from models.user import User
 
 app = FastAPI()
 
+# Security scheme definition for API Key
+security_scheme = {
+    "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization"
+    }
+}
+
 app.include_router(auth.router, tags=["Auth"])
 
 origins = ["*"]

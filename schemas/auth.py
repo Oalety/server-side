@@ -1,6 +1,17 @@
 from pydantic import BaseModel, EmailStr
 
 
+class AuthResponse(BaseModel):
+    email: EmailStr
+    message: str
+
+
+class TokenData(BaseModel):
+    username: str | None = None
+    id_token: str | None = None
+    access_token: str | None = None
+
+
 class UserRegisterRequest(BaseModel):
     email: EmailStr
     name: str
@@ -9,7 +20,6 @@ class UserRegisterRequest(BaseModel):
 
 class UserRegisterResponse(BaseModel):
     email: EmailStr
-    token: str | None
     verified: bool
     message: str
 
@@ -32,7 +42,8 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     email: EmailStr
-    token: str | None
+    id_token: str | None
+    access_token: str | None
     message: str
 
 
@@ -44,5 +55,33 @@ class ResendCodeResponse(BaseModel):
     email: EmailStr
     resent: bool
     message: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(AuthResponse):
+    sent: bool
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    new_password: str
+    code: str
+
+
+class ResetPasswordResponse(AuthResponse):
+    reset: bool
+
+
+class ChangePasswordRequest(BaseModel):
+    email: EmailStr
+    current_password: str
+    new_password: str
+
+
+class ChangePasswordResponse(AuthResponse):
+    updated: bool
 
 

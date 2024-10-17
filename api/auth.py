@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+import logging
 
+from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi.security import HTTPAuthorizationCredentials
+from auth.auth_dependency import get_current_user
 from database import get_db
 from schemas.auth import UserRegisterResponse, UserRegisterRequest, EmailVerificationRequest, EmailVerificationResponse, \
-    LoginRequest, LoginResponse, ResendCodeResponse, ResendCodeRequest
+    LoginRequest, LoginResponse, ResendCodeResponse, ResendCodeRequest, ForgotPasswordRequest, ForgotPasswordResponse, \
+    ResetPasswordRequest, ResetPasswordResponse, ChangePasswordResponse, ChangePasswordRequest, TokenData
 from services.auth_service import AuthService
 from services.user_service import UserService
 from sqlalchemy.orm import Session
@@ -40,3 +44,45 @@ def resend_code(request: ResendCodeRequest, session: Session = Depends(get_db)):
     auth_service = AuthService(user_service)
     response = auth_service.resend_code(request)
     return response
+
+
+@router.post("/forgot_password", response_model=ForgotPasswordResponse, tags=["Auth"])
+def forgot_password(request: ForgotPasswordRequest, session: Session = Depends(get_db)):
+    user_service = UserService(session)
+    auth_service = AuthService(user_service)
+    response = auth_service.forgot_password(request)
+    return response
+
+
+@router.post("/reset_password", response_model=ResetPasswordResponse, tags=["Auth"])
+def reset_password(request: ResetPasswordRequest, session: Session = Depends(get_db)):
+    user_service = UserService(session)
+    auth_service = AuthService(user_service)
+    response = auth_service.reset_password(request)
+    return response
+
+
+#api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
+
+@router.post("/change_password", response_model=ChangePasswordResponse, tags=["Auth"])
+def change_password(
+        request: ChangePasswordRequest,
+        current_user: TokenData = Security(get_current_user),
+        session: Session = Depends(get_db)
+):
+    # Extract the access token from the credentials
+    access_token = current_user.access_token
+
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Access token missing from header request")
+
+    user_service = UserService(session)
+    auth_service = AuthService(user_service)
+    response = auth_service.change_password(request, access_token)
+    return response
+
+
+@router.get("/if_authenticated", tags=["Auth"])
+def test_auth(current_user: TokenData = Security(get_current_user)):
+    username, id_token = current_user.username, current_user.id_token
+    return {'test' : f'You are authenticated as {username}', 'token': id_token}

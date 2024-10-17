@@ -1,10 +1,14 @@
-from typing import Optional
+from cgitb import reset
+from http.client import responses
+from os import access
 
 import boto3
-from sqlalchemy.orm import Session
+from fastapi import HTTPException
+
 from core.config import settings
 from schemas.auth import UserRegisterResponse, UserRegisterRequest, EmailVerificationRequest, EmailVerificationResponse, \
-    LoginRequest, LoginResponse, ResendCodeRequest, ResendCodeResponse
+    LoginRequest, LoginResponse, ResendCodeRequest, ResendCodeResponse, ForgotPasswordRequest, ForgotPasswordResponse, \
+    ResetPasswordRequest, ResetPasswordResponse, ChangePasswordRequest, ChangePasswordResponse
 from services.user_service import UserService
 from utils.util import generate_secret_hash
 
@@ -39,7 +43,6 @@ class AuthService:
 
         response = UserRegisterResponse(
             email=user.email,
-            token=None,
             verified=False,
             message="Registration failed"
         )
@@ -99,13 +102,16 @@ class AuthService:
 
         response = LoginResponse(
             email=request.email,
-            token=None,
+            id_token=None,
+            access_token=None,
             message='Login Failed'
         )
         if cognito_response['ResponseMetadata']['HTTPStatusCode'] == 200:
             auth_result = cognito_response['AuthenticationResult']
+            id_token = auth_result['IdToken']
             access_token = auth_result['AccessToken']
-            response.token = access_token
+            response.id_token = id_token
+            response.access_token = access_token
             response.message = 'Logged in successfully'
 
         return response
@@ -133,3 +139,83 @@ class AuthService:
             response.message = f'Confirmation code resent successfully to {request.email}'
 
         return response
+
+    @staticmethod
+    def forgot_password(request: ForgotPasswordRequest) -> ForgotPasswordResponse:
+        # Generate secret_hash
+        secret_hash = generate_secret_hash(request.email)
+
+        # Send a code to the email requesting the 'forgot-password'
+        cognito_response = cognito_client.forgot_password(
+            ClientId=settings.CLIENT_ID,
+            SecretHash=secret_hash,
+            Username=request.email,
+        )
+
+        response = ForgotPasswordResponse(
+            email=request.email,
+            sent=False,
+            message=f'Sending code [forgot password] to <{request.email}> Failed'
+        )
+
+        if cognito_response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            response.sent = True
+            response.message = f'Code [forgot password] sent successfully to <{request.email}>'
+
+        return response
+
+    @staticmethod
+    def reset_password(request: ResetPasswordRequest) -> ResetPasswordResponse:
+        # Generate secret_hash
+        secret_hash = generate_secret_hash(request.email)
+
+        # Reset the password using the code sent previously
+        cognito_response = cognito_client.confirm_forgot_password(
+            ClientId=settings.CLIENT_ID,
+            SecretHash=secret_hash,
+            Username=request.email,
+            ConfirmationCode=request.code,
+            Password=request.new_password,
+        )
+
+        response = ResetPasswordResponse(
+            email=request.email,
+            reset=False,
+            message=f'Reset password attempted by <{request.email}> Failed',
+        )
+
+        if cognito_response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            response.reset = True
+            response.message = f'Reset password went successfully by <{request.email}>'
+
+        return response
+
+    @staticmethod
+    def change_password(request: ChangePasswordRequest, access_token: str) -> ChangePasswordResponse:
+        try:
+            # Change password operation through cognito
+            cognito_response = cognito_client.change_password(
+                AccessToken=access_token,
+                PreviousPassword=request.current_password,
+                ProposedPassword=request.new_password,
+            )
+
+            response = ChangePasswordResponse(
+                email=request.email,
+                updated=False,
+                message=f'Updating password went wrong by <{request.email}>',
+            )
+
+            if cognito_response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                response.updated = True
+                response.message = f'Password updated successfully for <{request.email}>'
+
+            return response
+        except cognito_client.exceptions.NotAuthorizedException:
+            raise HTTPException(status_code=403, detail="Invalid access token")
+        except cognito_client.exceptions.InvalidPasswordException:
+            raise HTTPException(status_code=400, detail="New password does not meet the required policy")
+        except cognito_client.exceptions.LimitExceededException:
+            raise HTTPException(status_code=400, detail="Attempt limit exceeded, try again later")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
