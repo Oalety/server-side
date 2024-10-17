@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import APIKeyHeader
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi.security import HTTPAuthorizationCredentials
+from auth.auth_dependency import get_current_user
 from database import get_db
 from schemas.auth import UserRegisterResponse, UserRegisterRequest, EmailVerificationRequest, EmailVerificationResponse, \
     LoginRequest, LoginResponse, ResendCodeResponse, ResendCodeRequest, ForgotPasswordRequest, ForgotPasswordResponse, \
-    ResetPasswordRequest, ResetPasswordResponse, ChangePasswordResponse, ChangePasswordRequest
+    ResetPasswordRequest, ResetPasswordResponse, ChangePasswordResponse, ChangePasswordRequest, TokenData
 from services.auth_service import AuthService
 from services.user_service import UserService
 from sqlalchemy.orm import Session
@@ -59,19 +62,28 @@ def reset_password(request: ResetPasswordRequest, session: Session = Depends(get
     return response
 
 
-api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
+#api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
 @router.post("/change_password", response_model=ChangePasswordResponse, tags=["Auth"])
 def change_password(
         request: ChangePasswordRequest,
-        access_token: str = Depends(api_key_header),
+        credentials: HTTPAuthorizationCredentials = Security(get_current_user),
         session: Session = Depends(get_db)
 ):
+    # Extract the access token from the credentials
+    access_token = credentials.credentials
+
     if not access_token:
         raise HTTPException(status_code=400, detail="Authorization header missing")
+    logging.info('Here the access token from header = ' + access_token)
 
     user_service = UserService(session)
     auth_service = AuthService(user_service)
     response = auth_service.change_password(request, access_token)
     return response
 
+
+@router.get("/if_authenticated", tags=["Auth"])
+def test_auth(credentials: TokenData = Security(get_current_user)):
+    username, access_token = credentials.username, credentials.access_token
+    return {'test' : f'You are authenticated as {username}', 'token': access_token}

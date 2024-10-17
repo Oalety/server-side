@@ -1,8 +1,15 @@
 from pydantic import BaseModel, EmailStr
 
+
 class AuthResponse(BaseModel):
     email: EmailStr
     message: str
+
+
+class TokenData(BaseModel):
+    username: str | None = None
+    access_token: str | None = None
+
 
 class UserRegisterRequest(BaseModel):
     email: EmailStr
