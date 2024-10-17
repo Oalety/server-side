@@ -67,15 +67,14 @@ def reset_password(request: ResetPasswordRequest, session: Session = Depends(get
 @router.post("/change_password", response_model=ChangePasswordResponse, tags=["Auth"])
 def change_password(
         request: ChangePasswordRequest,
-        credentials: HTTPAuthorizationCredentials = Security(get_current_user),
+        current_user: TokenData = Security(get_current_user),
         session: Session = Depends(get_db)
 ):
     # Extract the access token from the credentials
-    access_token = credentials.credentials
+    access_token = current_user.access_token
 
     if not access_token:
-        raise HTTPException(status_code=400, detail="Authorization header missing")
-    logging.info('Here the access token from header = ' + access_token)
+        raise HTTPException(status_code=400, detail="Access token missing from header request")
 
     user_service = UserService(session)
     auth_service = AuthService(user_service)
@@ -84,6 +83,6 @@ def change_password(
 
 
 @router.get("/if_authenticated", tags=["Auth"])
-def test_auth(credentials: TokenData = Security(get_current_user)):
-    username, access_token = credentials.username, credentials.access_token
-    return {'test' : f'You are authenticated as {username}', 'token': access_token}
+def test_auth(current_user: TokenData = Security(get_current_user)):
+    username, id_token = current_user.username, current_user.id_token
+    return {'test' : f'You are authenticated as {username}', 'token': id_token}

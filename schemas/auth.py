@@ -8,6 +8,7 @@ class AuthResponse(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
+    id_token: str | None = None
     access_token: str | None = None
 
 
@@ -19,7 +20,6 @@ class UserRegisterRequest(BaseModel):
 
 class UserRegisterResponse(BaseModel):
     email: EmailStr
-    token: str | None
     verified: bool
     message: str
 
@@ -42,7 +42,8 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     email: EmailStr
-    token: str | None
+    id_token: str | None
+    access_token: str | None
     message: str
 
 
@@ -82,7 +83,5 @@ class ChangePasswordRequest(BaseModel):
 
 class ChangePasswordResponse(AuthResponse):
     updated: bool
-    email_sent: bool
-
 
 

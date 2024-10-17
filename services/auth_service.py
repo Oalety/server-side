@@ -1,5 +1,6 @@
 from cgitb import reset
 from http.client import responses
+from os import access
 
 import boto3
 from fastapi import HTTPException
@@ -42,7 +43,6 @@ class AuthService:
 
         response = UserRegisterResponse(
             email=user.email,
-            token=None,
             verified=False,
             message="Registration failed"
         )
@@ -102,13 +102,16 @@ class AuthService:
 
         response = LoginResponse(
             email=request.email,
-            token=None,
+            id_token=None,
+            access_token=None,
             message='Login Failed'
         )
         if cognito_response['ResponseMetadata']['HTTPStatusCode'] == 200:
             auth_result = cognito_response['AuthenticationResult']
+            id_token = auth_result['IdToken']
             access_token = auth_result['AccessToken']
-            response.token = access_token
+            response.id_token = id_token
+            response.access_token = access_token
             response.message = 'Logged in successfully'
 
         return response
@@ -200,13 +203,11 @@ class AuthService:
             response = ChangePasswordResponse(
                 email=request.email,
                 updated=False,
-                email_sent=False,
                 message=f'Updating password went wrong by <{request.email}>',
             )
 
             if cognito_response['ResponseMetadata']['HTTPStatusCode'] == 200:
                 response.updated = True
-                response.email_sent = True
                 response.message = f'Password updated successfully for <{request.email}>'
 
             return response

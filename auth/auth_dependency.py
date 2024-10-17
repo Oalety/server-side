@@ -2,7 +2,7 @@ import json
 import time
 import urllib.request
 
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, Request, Header
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
 from jose import jwt, jwk
 from jose.utils import base64url_decode
@@ -62,14 +62,27 @@ def verify_token(token: str):
     if time.time() > claims['exp']:
         raise HTTPException(status_code=401, detail="Token is expired")
 
-    # Verify audience (client_id) for ID token or aud for access token
-    if claims.get('client_id') != app_client_id:
-        raise HTTPException(status_code=401, detail="Token was not issued for this audience")
+    # Check whether it's an ID token or access token
+    token_use = claims.get("token_use")
+
+    if token_use == "id":
+        # ID Token - verify the `aud` claim
+        if claims.get('aud') != app_client_id:
+            raise HTTPException(status_code=401, detail="ID Token was not issued for this audience")
+
+    elif token_use == "access":
+        # Access Token - verify the `client_id` claim
+        if claims.get('client_id') != app_client_id:
+            raise HTTPException(status_code=401, detail="Access Token was not issued for this audience")
+
+    else:
+        # If token_use is neither 'id' nor 'access', it might be an invalid token
+        raise HTTPException(status_code=401, detail="Invalid token type")
 
     return claims
 
 
-async def get_current_user(token: str = Depends(security)):
+async def get_current_user(request: Request, token: str = Depends(security), access_token: str | None = Header(default=None)):
     """Get current user by verifying the token."""
     id_token = token.credentials
     try:
@@ -81,7 +94,7 @@ async def get_current_user(token: str = Depends(security)):
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token: username not found")
 
-        return TokenData(username=username, id_token=id_token)
+        return TokenData(username=username, id_token=id_token, access_token=access_token)
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
